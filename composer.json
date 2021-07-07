@@ -15,4 +15,9 @@
 			"role": "Developer"
 		}
 	],
+	"autoload": {
+		"classmap": [
+			"./toolkit"
+		]
+	}
 }

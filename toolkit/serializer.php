@@ -31,9 +31,8 @@ abstract class SupportedAnnotationTags
 	/**
 	 * Usage: @var [type[|null]] [?description]
 	 *
-	 * Property annotation. Used to define the target type during
-	 * the decoding process. The matched Json data will get assigned
-	 * or converted to the type defined in this annotation.
+	 * Property annotation. Used to define the target type during the decoding process.
+	 * The matched Json data will get assigned or converted to the type defined in this annotation.
 	 */
 	const Variable = "var";
 	/**
@@ -52,69 +51,56 @@ abstract class SupportedAnnotationTags
 	 */
 	const Index = "index";
 	/**
-	 * Usage: @required [context]
+	 * Usage: @required [?context]
 	 *
-	 * Property-annotation. Defines that a certain property must be present
-	 * and not be null during decoding from Json. A context is optional.
-	 * If a context is given, then the property is only required when parsing
-	 * during that context.
+	 * Property-annotation. Defines that a certain property must be present and not be null during decoding from Json.
+	 * A context is optional. If a context is given, then the property is only required when parsing during that context.
 	 */
 	const Required = "required";
 	/**
-	 * Usage: @decode-alias [name]
+	 * Usage: @deserialize-alias [name]
 	 *
-	 * Property-annotation for associative decoding. When defined,
-	 * the decode-alias is also checked for in the Json-data. If the alias
-	 * isn't present in the Json data, then the property's real name
-	 * is used to check for before determining whether to skip it or not.
-	 * Multiple decode-alias annotations may be defined.
+	 * Property-annotation for associative derserialization. When defined, the deserialize-alias is also checked for in the data.
+	 * If the alias isn't present in the data, then the property's real name is used to check for before determining whether to skip it or not.
+	 * Multiple deserialize-alias annotations are allowed.
 	 */
-	const DecodeAlias = "decode-alias";
+	const DeserializeAlias = "deserialize-alias";
 	/**
-	 * Usage: @encode-alias [name]
+	 * Usage: @serialize-alias [name]
 	 *
-	 * Property-annotation for associative encoding. When defined,
-	 * the property will be encoded under the alias instead of
-	 * the property's real name. Only a single encode-alias is supported.
-	 * Defining more than one encode-alias will have undefined results.
+	 * Property-annotation for associative serialization. When defined, the property will be serialized under the alias instead of
+	 * the property's real name. Only a single serialize-alias is supported. Defining more than one serialize-alias will have undefined results.
 	 */
-	const EncodeAlias = "encode-alias";
+	const SerializeAlias = "serialize-alias";
 	/**
-	 * Usage: @sub-class [fieldname] [fieldvalue] [full sub-class name]
+	 * Usage: @sub-class [fieldname] [fieldvalue] [fully qualified typename]
 	 *
-	 * Class-annotation that can be used to define a certain sub-class
-	 * to get instantiated. This can be useful when working with
-	 * abstract classes.
+	 * Class-annotation that can be used to define a certain sub-class to get instantiated.
+	 * This can be useful when working with abstract classes.
 	 */
 	const SubClass = "sub-class";
 	/**
 	 * Usage: @ignore
 	 *
-	 * Property annotation that is used during encoding.
-	 * By default, all public properties are encoded. Using
-	 * the @ignore annotation will exclude it from the result.
+	 * Property annotation that is used during encoding. By default, all public properties are serialized.
+	 * Using the @ignore annotation will exclude it from the result.
 	 */
 	const Ignore = "ignore";
 	/**
 	 * Usage: @json-decode
 	 *
-	 * Property annotation that can be used when the property
-	 * expects a more complex object or array while the matched
-	 * Json-data is a string. In this case, the matched string
-	 * of the Json-data is decoded first using a call to
-	 * json_decode($value, true) before further analysis.
+	 * Property annotation that can be used when the property expects a more complex object or array while the matched
+	 * Json string. In this case, the matched Json is deserialized first using a call to json_decode($value, true) before further analysis.
 	 */
 	const JsonDecode = "json-decode";
 	/**
-	 * Usage: @encode-context [context]
+	 * Usage: @context [context]
 	 *
-	 * Property annotation that can be used to define whether
-	 * a property should only be encoded in a specific context.
-	 * When no encoding-context is defined for the property,
-	 * it will always be encoded. If a context is specified, it
-	 * is only encoded if the current encoding context matches.
+	 * Property annotation that can be used to define whether a property should only be serialized in a specific context.
+	 * When no context is defined for the property, it will always be serialized if the data is present.
+	 * If a context is specified, it is only processed if the provided context matches.
 	 */
-	const EncodeContext = "encode-context";
+	const Context = "context";
 }
 
 class SubClassDefinition
@@ -299,7 +285,7 @@ class Serializer
 	}
 
 	/**
-	 * Encodes the given $object to an associative array, ready to be encoded by the built-in PHP json encoder.
+	 * Serializes the given $object to an associative array, ready to be processed by the PHP json encoder.
 	 *
 	 * @param mixed $object
 	 * @return mixed
@@ -341,7 +327,7 @@ class Serializer
 			$rprops = $rc->getProperties(ReflectionProperty::IS_PUBLIC);
 			$classAnnotations = self::GetClassAnnotations($rc);
 
-			// Check whether we want to encode this data as a sequential array or as an associative array
+			// Check whether we want to serialize this data as a sequential array or as an associative array
 			if (array_key_exists(SupportedAnnotationTags::MapSequential, $classAnnotations)) {
 				$indexProps = array();
 
@@ -371,7 +357,7 @@ class Serializer
 				foreach ($rprops as $rprop) {
 					$rvalue = $rprop->getValue($object);
 
-					// I don't want to encode null values...
+					// I don't want to serialize null values...
 					if (is_null($rvalue)) {
 						continue;
 					}
@@ -383,23 +369,23 @@ class Serializer
 					}
 
 					// If the property has a specific encoding context defined...
-					if (isset($propAnnotations[SupportedAnnotationTags::EncodeContext]) && !in_array(self::$parsingContext, $propAnnotations[SupportedAnnotationTags::EncodeContext])) {
+					if (isset($propAnnotations[SupportedAnnotationTags::Context]) && !in_array(self::$parsingContext, $propAnnotations[SupportedAnnotationTags::Context])) {
 						continue;
 					}
 
-					$encodedValue = self::Serialize($rvalue, self::$parsingContext);
-					if (isset($encodedValue)) {
+					$serializedValue = self::Serialize($rvalue, self::$parsingContext);
+					if (isset($serializedValue)) {
 						$serializedName = $rprop->getName();
 
 						// Check whether an encoding alias is defined
-						if (isset($propAnnotations[SupportedAnnotationTags::EncodeAlias])) {
-							$alias = $propAnnotations[SupportedAnnotationTags::EncodeAlias][0];
+						if (isset($propAnnotations[SupportedAnnotationTags::SerializeAlias])) {
+							$alias = $propAnnotations[SupportedAnnotationTags::SerializeAlias][0];
 							if (strcmp($alias, "") !== 0) {
 								$serializedName = $alias;
 							}
 						}
 
-						$jsonArray[$serializedName] = $encodedValue;
+						$jsonArray[$serializedName] = $serializedValue;
 					}
 				}
 
@@ -524,8 +510,8 @@ class Serializer
 			// See whether there are decode aliases defined for this property
 			$propAnnotations = self::GetPropertyAnnotations($property);
 			$nameCandidates = array();
-			if (isset($propAnnotations[SupportedAnnotationTags::DecodeAlias])) {
-				$nameCandidates = $propAnnotations[SupportedAnnotationTags::DecodeAlias];
+			if (isset($propAnnotations[SupportedAnnotationTags::DeserializeAlias])) {
+				$nameCandidates = $propAnnotations[SupportedAnnotationTags::DeserializeAlias];
 			}
 
 			// Add the property's name as a last resort.
