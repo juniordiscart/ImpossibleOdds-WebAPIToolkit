@@ -2,9 +2,6 @@
 
 namespace ImpossibleOdds\Photon\WebRpc;
 
-$ROOT = $_SERVER["DOCUMENT_ROOT"];
-require_once($ROOT . "/vendor/autoload.php");
-
 /**
  * Base response class with the data Photon expects to be returned by default.
  * Any custom response data should assigned to the WebRpcResponse::Data field.

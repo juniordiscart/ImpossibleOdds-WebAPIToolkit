@@ -4,9 +4,6 @@ namespace ImpossibleOdds\Photon\WebRpc;
 
 use ImpossibleOdds\Serialization\Serializer;
 
-$ROOT = $_SERVER["DOCUMENT_ROOT"];
-require_once($ROOT . "/vendor/autoload.php");
-
 /**
  * Abstract request class that represents incoming Photon WebRPC requests.
  * It has all default parameters sent by Photon defined already.

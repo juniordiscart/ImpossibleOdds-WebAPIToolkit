@@ -29,7 +29,7 @@ private static $installed = array (
     'aliases' => 
     array (
     ),
-    'reference' => 'fcf6a6d34e892d28544a595e9dd4fc333a90d7d0',
+    'reference' => '8cdc11cbd6fdfd8785a9476411f82ffa5c4b59e1',
     'name' => 'impossible-odds/web-api-toolkit',
   ),
   'versions' => 
@@ -41,7 +41,7 @@ private static $installed = array (
       'aliases' => 
       array (
       ),
-      'reference' => 'fcf6a6d34e892d28544a595e9dd4fc333a90d7d0',
+      'reference' => '8cdc11cbd6fdfd8785a9476411f82ffa5c4b59e1',
     ),
   ),
 );

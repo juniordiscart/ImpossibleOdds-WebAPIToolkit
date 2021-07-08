@@ -4,9 +4,6 @@ namespace ImpossibleOdds\WebRequests;
 
 use ImpossibleOdds\Serialization\Serializer;
 
-$ROOT = $_SERVER["DOCUMENT_ROOT"];
-require_once($ROOT . "/vendor/autoload.php");
-
 abstract class UnityWebRequest
 {
 	/**

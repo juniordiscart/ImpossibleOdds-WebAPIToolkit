@@ -9,23 +9,6 @@ use ReflectionMethod;
 use ReflectionProperty;
 use UnexpectedValueException;
 
-/**
- * Exception class to denote that a property that is marked as required, was not found in the source data.
- */
-class RequiredPropertyException extends Exception
-{
-	/**
-	 * Displays a message that required property $rp was not found in class $rc.
-	 *
-	 * @param ReflectionClass $rc
-	 * @param ReflectionProperty $rp
-	 */
-	public function __construct(ReflectionClass $rc, ReflectionProperty $rp)
-	{
-		parent::__construct("Property " . $rp->name . " of class " . $rc->name . " is marked as required, but no match could be made.");
-	}
-}
-
 abstract class SupportedAnnotationTags
 {
 	/**
@@ -87,12 +70,12 @@ abstract class SupportedAnnotationTags
 	 */
 	const Ignore = "ignore";
 	/**
-	 * Usage: @json-decode
+	 * Usage: @data-decode
 	 *
 	 * Property annotation that can be used when the property expects a more complex object or array while the matched
 	 * Json string. In this case, the matched Json is deserialized first using a call to json_decode($value, true) before further analysis.
 	 */
-	const JsonDecode = "json-decode";
+	const JsonDecode = "data-decode";
 	/**
 	 * Usage: @context [context]
 	 *
@@ -119,74 +102,6 @@ class SubClassDefinition
 	public $SubClass;
 }
 
-interface IAnnotationsCache
-{
-	public function AnnotationExists(string $cacheKey): bool;
-	public function GetAnnotation(string $cacheKey): array;
-	public function SetAnnotation(string $cacheKey, array $annotations);
-}
-
-/**
- * Implements the cache locally. This cache will not be stored persistently across sessions.
- */
-class LocalAnnotationsCache implements IAnnotationsCache
-{
-	private $cache;
-
-	public function __construct()
-	{
-		$this->cache = array();
-	}
-
-	public function AnnotationExists(string $cacheKey): bool
-	{
-		return array_key_exists($cacheKey, $this->cache);
-	}
-
-	public function GetAnnotation(string $cacheKey): array
-	{
-		if ($this->AnnotationExists($cacheKey)) {
-			return $this->cache[$cacheKey];
-		} else {
-			return array();
-		}
-	}
-
-	public function SetAnnotation(string $cacheKey, array $annotations)
-	{
-		$this->cache[$cacheKey] = $annotations;
-	}
-}
-
-/**
- * Uses the WinCache module which will exists across sessions.
- */
-class WindowsAnnotationsCache implements IAnnotationsCache
-{
-	public function AnnotationExists(string $cacheKey): bool
-	{
-		return wincache_ucache_exists($cacheKey);
-	}
-
-	public function GetAnnotation(string $cacheKey): array
-	{
-		$success = false;
-		if ($this->AnnotationExists($cacheKey)) {
-			$annotations = wincache_ucache_get($cacheKey, $success);
-			if ($success) {
-				return $annotations;
-			}
-		}
-
-		return array();
-	}
-
-	public function SetAnnotation(string $cacheKey, array $annotations)
-	{
-		wincache_ucache_set($cacheKey, $annotations);
-	}
-}
-
 class Serializer
 {
 	/**
@@ -197,7 +112,7 @@ class Serializer
 	/**
 	 * @var AnnotationsCache
 	 */
-	private static $annotationsCache;
+	private static $annotationsCache = null;
 
 	/**
 	 * Defines the current context for required values.
@@ -211,19 +126,10 @@ class Serializer
 	 *
 	 * @return void
 	 */
-	public static function __Init(bool $useCache = true)
+	public static function __Init(IAnnotationsCache $cache)
 	{
-		if ($useCache && is_null(self::$annotationsCache)) {
-			// If on Windows, we use the wincache solution.
-			// As a last resort, we use a local solution.
-			// TODO: support for other platform caches
-			if (extension_loaded("wincache")) {
-				self::$annotationsCache = new WindowsAnnotationsCache();
-			} else {
-				self::$annotationsCache = new LocalAnnotationsCache();
-			}
-		} else {
-			self::$annotationsCache = new LocalAnnotationsCache();
+		if (isset($cache)) {
+			self::$annotationsCache = $cache;
 		}
 	}
 
@@ -254,14 +160,14 @@ class Serializer
 	}
 
 	/**
-	 * Deserializes the $json array and decodes it to the target object.
+	 * Deserializes the $data array and decodes it to the target object.
 	 *
 	 * @param mixed $target
-	 * @param array $json
+	 * @param array $data
 	 * @param string $parsingContext
 	 * @return void
 	 */
-	public static function Deserialize($target, array $json, string $parsingContext = ""): void
+	public static function Deserialize($target, array $data, string $parsingContext = ""): void
 	{
 		if (!isset($target)) {
 			throw new InvalidArgumentException("The target object is null.");
@@ -272,20 +178,20 @@ class Serializer
 		$rc = new ReflectionClass($target);
 		$rcAnno = self::GetClassAnnotations($rc);
 
-		// Check whether the target and the json data match in sequential data decoding.
-		if (isset($rcAnno[SupportedAnnotationTags::MapSequential]) !== self::IsArraySequential($json)) {
+		// Check whether the target and the data match in sequential data decoding.
+		if (isset($rcAnno[SupportedAnnotationTags::MapSequential]) !== self::IsArraySequential($data)) {
 			throw new InvalidArgumentException("The target object and JSON data do not agree on sequential decoding.");
 		}
 
-		if (self::IsArraySequential($json)) {
-			self::DeserializeSequential($rc, $target, $json);
+		if (self::IsArraySequential($data)) {
+			self::DeserializeSequential($rc, $target, $data);
 		} else {
-			self::DeserializeAssociative($rc, $target, $json);
+			self::DeserializeAssociative($rc, $target, $data);
 		}
 	}
 
 	/**
-	 * Serializes the given $object to an associative array, ready to be processed by the PHP json encoder.
+	 * Serializes the given $object to an associative array, ready to be processed by the PHP data encoder.
 	 *
 	 * @param mixed $object
 	 * @return mixed
@@ -489,19 +395,19 @@ class Serializer
 	}
 
 	/**
-	 * Treats the $json data as associative, and will attempt to match
+	 * Treats the $data data as associative, and will attempt to match
 	 * each of the properties to the $target. If a property of the target class
 	 * is marked as being required, then the value has to be present in the
-	 * $json data. Unresolved required fields will throw an exception.
-	 * Deserialization aliases can be used to alter the name of a field in the $json
+	 * $data data. Unresolved required fields will throw an exception.
+	 * Deserialization aliases can be used to alter the name of a field in the $data
 	 * data. Aliases are given priority to the real name of the property.
 	 *
 	 * @param ReflectionClass $rc
 	 * @param mixed $target
-	 * @param array $json
+	 * @param array $data
 	 * @return void
 	 */
-	private static function DeserializeAssociative(ReflectionClass $rc, $target, $json): void
+	private static function DeserializeAssociative(ReflectionClass $rc, $target, $data): void
 	{
 		// Go over each of the properties in the class and check whether there is an
 		// entry in the JSON data
@@ -520,7 +426,7 @@ class Serializer
 			// Go over the different name candidates to see if there is a match in the JSON data.
 			$nameMatch = null;
 			foreach ($nameCandidates as $name) {
-				if (isset($json[$name])) {
+				if (isset($data[$name])) {
 					$nameMatch = $name;
 					break;
 				}
@@ -539,26 +445,26 @@ class Serializer
 			// Check whether a type definition is given. If not,
 			// then just assign the value, and continue.
 			if (!self::HasTypeDefinition($property)) {
-				$property->setValue($target, $json[$nameMatch]);
+				$property->setValue($target, $data[$nameMatch]);
 				continue;
 			}
 
 			// You've found a match!
 			// Fucking Tinder... -.-'
-			self::DeserializeValue($rc, $property, $target, $json[$nameMatch]);
+			self::DeserializeValue($rc, $property, $target, $data[$nameMatch]);
 		}
 	}
 
 	/**
-	 * Threats the $json data as sequential, and will attempt to match each of the elements to a property with the @index annotation.
-	 * If a property of the target is defined as required, but no element exists at that index in the $json data, an exception is thrown.
+	 * Threats the $data data as sequential, and will attempt to match each of the elements to a property with the @index annotation.
+	 * If a property of the target is defined as required, but no element exists at that index in the $data data, an exception is thrown.
 	 *
 	 * @param ReflectionClass $rc
 	 * @param mixed $target
-	 * @param array $json
+	 * @param array $data
 	 * @return void
 	 */
-	private static function DeserializeSequential(ReflectionClass $rc, $target, array $json): void
+	private static function DeserializeSequential(ReflectionClass $rc, $target, array $data): void
 	{
 		// Go over each of the properties in the class and check whether there is an
 		// entry in the JSON data
@@ -574,7 +480,7 @@ class Serializer
 			$indexValue = (int)$propAnnotations[SupportedAnnotationTags::Index][0];
 
 			// If no such index exists...
-			if (!isset($json[$indexValue])) {
+			if (!isset($data[$indexValue])) {
 				if (self::IsPropertyRequired($propAnnotations)) {
 					throw new RequiredPropertyException($rc, $property);
 				} else {
@@ -585,13 +491,13 @@ class Serializer
 			// Check whether a type definition is given. If not,
 			// then just assign the value, and continue.
 			if (!self::HasTypeDefinition($property)) {
-				$property->setValue($target, $json[$indexValue]);
+				$property->setValue($target, $data[$indexValue]);
 				continue;
 			}
 
 			// You've found a match!
 			// Fucking Tinder... -.-'
-			self::DeserializeValue($rc, $property, $target, $json[$indexValue]);
+			self::DeserializeValue($rc, $property, $target, $data[$indexValue]);
 		}
 	}
 
@@ -778,7 +684,7 @@ class Serializer
 	}
 
 	/**
-	 * A property is considered to be json-decodable when the property has the @json-decode tag, and the value is a string.
+	 * A property is considered to be data-decodable when the property has the @data-decode tag, and the value is a string.
 	 *
 	 * @param ReflectionProperty $property
 	 * @param mixed $value
@@ -940,4 +846,9 @@ class Serializer
 	}
 }
 
-Serializer::__Init();
+// If the win_cache extension is loaded, prefer it above the local one.
+if (extension_loaded("wincache")) {
+	Serializer::__Init(new WindowsAnnotationsCache());
+} else {
+	Serializer::__Init(new LocalAnnotationsCache());
+}
