@@ -23,16 +23,29 @@ abstract class WebRpcRequest
 		$postData = json_decode(urldecode(file_get_contents("php://input")), true);
 
 		if (isset($postData)) {
+
+			// Extract a separate RpcParams value.
+			$rpcParams = null;
+			if (array_key_exists("RpcParams", $postData)) {
+				$rpcParams = $postData["RpcParams"];
+				unset($postData["RpcParams"]);	// Remove the value so that it doesn't get processed during the 'body' parsing context.
+			}
+
 			Serializer::Deserialize($request, $postData, ParsingContext::Body);
 
-			if (array_key_exists("RpcParams", $postData)) {
-				Serializer::Deserialize($request, $postData["RpcParams"], ParsingContext::RpcParams);
+			if (!is_null($rpcParams) && is_array($rpcParams)) {
+				Serializer::Deserialize($request, $rpcParams, ParsingContext::RpcParams);
 			}
 		}
 
+		// Create a response, and set it's response ID so that it may be properly matched in Unity again.
 		$request->Response = new WebRpcResponse();
 		$request->Response->Data = $request->ConstructResponse();
-		$request->Response->Data->ResponseId = $request->RequestId;
+
+		if (!is_null($request->Response->Data)) {
+			$request->Response->Data->ResponseId = $request->RequestId;
+		}
+
 		$request->ProcessRequest();
 		$request->SendResponse();
 		exit;
@@ -60,7 +73,6 @@ abstract class WebRpcRequest
 	public $UserId;
 	/**
 	 * @var string
-	 * @required body
 	 */
 	public $RequestId;
 
@@ -72,9 +84,9 @@ abstract class WebRpcRequest
 	/**
 	 * Let the request create the appropriate response object.
 	 *
-	 * @return WebRpcResponseData
+	 * @return WebRpcResponseData|null
 	 */
-	protected abstract function ConstructResponse(): WebRpcResponseData;
+	protected abstract function ConstructResponse(): ?WebRpcResponseData;
 
 	/**
 	 * Process the request's data and set the response data from here.

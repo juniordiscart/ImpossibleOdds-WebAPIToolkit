@@ -52,7 +52,7 @@ class UpdateLeaderboardRequest extends WebRpcRequest
 	 */
 	public $ForceUpdate = false;
 
-	protected function ConstructResponse(): WebRpcResponseData
+	protected function ConstructResponse(): ?WebRpcResponseData
 	{
 		return new UpdateLeaderboardResponseData();
 	}

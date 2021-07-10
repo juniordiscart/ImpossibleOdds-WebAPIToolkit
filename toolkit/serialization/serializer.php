@@ -162,48 +162,67 @@ class Serializer
 	/**
 	 * Deserializes the $data array and decodes it to the target object.
 	 *
-	 * @param mixed $target
-	 * @param array $data
-	 * @param string $parsingContext
-	 * @return void
+	 * $target can be either:
+	 * - String representing the fully qualified type name, or
+	 * - An instance of ReflectionClass, or
+	 * - An instance of the object in which to deserialize the data.
+	 *
+	 * @param mixed $target Target object in which to unpack the data.
+	 * @param array $data	The data to deserialize.
+	 * @param string|null $parsingContext
+	 * @return mixed
 	 */
-	public static function Deserialize($target, array $data, string $parsingContext = ""): void
+	public static function Deserialize($target, array $data, ?string $parsingContext = null): mixed
 	{
 		if (!isset($target)) {
 			throw new InvalidArgumentException("The target object is null.");
 		}
 
-		self::$parsingContext = $parsingContext;
+		self::$parsingContext = isset($parsingContext) ? $parsingContext : "";
 
-		$rc = new ReflectionClass($target);
+		if ($target instanceof ReflectionClass) {
+			$rc = self::DetermineSubType($target, $data);
+			$result = self::InstantiateObject($rc);
+		} else if ($target instanceof string) {
+			$rc = new ReflectionClass($target);
+			$rc = self::DetermineSubType($rc, $data);
+			$result = self::InstantiateObject($rc);
+		} else {
+			$rc = new ReflectionClass($target);
+			$result = $target;
+		}
+
 		$rcAnno = self::GetClassAnnotations($rc);
 
 		// Check whether the target and the data match in sequential data decoding.
 		if (isset($rcAnno[SupportedAnnotationTags::MapSequential]) !== self::IsArraySequential($data)) {
-			throw new InvalidArgumentException("The target object and JSON data do not agree on sequential decoding.");
+			throw new InvalidArgumentException("The target object and JSON data do not agree on sequential or associative decoding.");
 		}
 
 		if (self::IsArraySequential($data)) {
-			self::DeserializeSequential($rc, $target, $data);
+			self::DeserializeSequential($rc, $result, $data);
 		} else {
-			self::DeserializeAssociative($rc, $target, $data);
+			self::DeserializeAssociative($rc, $result, $data);
 		}
+
+		return $result;
 	}
 
 	/**
-	 * Serializes the given $object to an associative array, ready to be processed by the PHP data encoder.
+	 * Serializes the given $object to an array.
 	 *
 	 * @param mixed $object
+	 * @param string|null $parsingContext
 	 * @return mixed
 	 */
-	public static function Serialize($object, string $parsingContext = "")
+	public static function Serialize($object, ?string $parsingContext = null)
 	{
 		// If the given object is null or a scalar object then we just return it.
 		if (!isset($object) || is_scalar($object)) {
 			return $object;
 		}
 
-		self::$parsingContext = $parsingContext;
+		self::$parsingContext = isset($parsingContext) ? $parsingContext : "";
 
 		// If the object is an array (associative or sequential) then we process each of the array's elements.
 		// Else, the object is a class, and we search for its fields and process those.
@@ -799,13 +818,12 @@ class Serializer
 
 		$subclassDefs = $annotations[SupportedAnnotationTags::SubClass];
 
-		// If the class has no annotations for any sub-class definitions,
-		// then we're not going to bother.
+		// Skip when no annotations for sub-class definitions were found.
 		if (!isset($subclassDefs)) {
 			return $classDef;
 		}
 
-		// Check if this class was already processed for sub-class definitions
+		// Check if this class was already processed for sub-class definitions.
 		$className = $classDef->getName();
 		if (!array_key_exists($className, self::$subClassDefinitionsCache)) {
 			self::$subClassDefinitionsCache[$className] = array();
@@ -828,10 +846,9 @@ class Serializer
 			}
 		}
 
-		// Check the sub-class definitions if we can match a value
+		// Check the sub-class definitions if we can match a value.
 		foreach (self::$subClassDefinitionsCache[$className] as $subClassDef) {
 
-			// If the field does not exist, then we don't bother
 			if (!array_key_exists($subClassDef->FieldName, $jvalue)) {
 				continue;
 			}
