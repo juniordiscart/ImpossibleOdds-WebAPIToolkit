@@ -1,11 +1,11 @@
 <?php
 
-namespace ImpossibleOdds\WebRequests;
+namespace ImpossibleOdds\Unity\WebRequests;
 
 /**
  * Supported request modes for incoming requests.
  */
-abstract class UnityWebRequestMode
+abstract class WebRequestMode
 {
 	const Get = "GET";
 	const Post = "POST";

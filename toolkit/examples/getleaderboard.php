@@ -1,7 +1,7 @@
 <?php
 
-use ImpossibleOdds\WebRequests\UnityWebRequest;
-use ImpossibleOdds\WebRequests\UnityWebResponse;
+use ImpossibleOdds\Unity\WebRequests\WebRequest;
+use ImpossibleOdds\Unity\WebRequests\WebResponse;
 
 $ROOT = $_SERVER["DOCUMENT_ROOT"];
 require_once($ROOT . "/vendor/autoload.php");
@@ -52,7 +52,7 @@ class ErrorCodes
 	public const INVALID_OFFSET = 1 << 2;
 }
 
-class GetLeaderboardRequest extends UnityWebRequest
+class GetLeaderboardRequest extends WebRequest
 {
 	/**
 	 * @var string
@@ -70,13 +70,12 @@ class GetLeaderboardRequest extends UnityWebRequest
 	 */
 	public $Offset;
 
-	public function ConstructResponse(): void
+	protected function ConstructResponse(): ?WebResponse
 	{
-		$response = new GetLeaderboardResponse();
-		$this->Response = $response;
+		return new GetLeaderboardResponse();
 	}
 
-	public function ProcessRequest(): void
+	protected function ProcessRequest(): void
 	{
 		$response = $this->GetResponse();
 		if (empty($this->LeaderboardId)) {
@@ -123,18 +122,16 @@ class GetLeaderboardRequest extends UnityWebRequest
 	}
 }
 
-class GetLeaderboardResponse extends UnityWebResponse
+class GetLeaderboardResponse extends WebResponse
 {
 	/**
 	 * @var int
-	 * @context body
 	 */
 	public $ErrorCode = ErrorCodes::NONE;
 	/**
 	 * @var Leaderboard
-	 * @context body
 	 */
 	public $Leaderboard;
 }
 
-UnityWebRequest::Process(new GetLeaderboardRequest());
+WebRequest::Process(new GetLeaderboardRequest());

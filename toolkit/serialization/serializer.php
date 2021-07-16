@@ -468,8 +468,7 @@ class Serializer
 				continue;
 			}
 
-			// You've found a match!
-			// Fucking Tinder... -.-'
+			// Matched!
 			self::DeserializeValue($rc, $property, $target, $data[$nameMatch]);
 		}
 	}
@@ -514,8 +513,7 @@ class Serializer
 				continue;
 			}
 
-			// You've found a match!
-			// Fucking Tinder... -.-'
+			// Matched!
 			self::DeserializeValue($rc, $property, $target, $data[$indexValue]);
 		}
 	}

@@ -31,11 +31,17 @@ abstract class WebRpcRequest
 				unset($postData["RpcParams"]);	// Remove the value so that it doesn't get processed during the 'body' parsing context.
 			}
 
-			Serializer::Deserialize($request, $postData, ParsingContext::Body);
-
-			if (!is_null($rpcParams) && is_array($rpcParams)) {
-				Serializer::Deserialize($request, $rpcParams, ParsingContext::RpcParams);
+			// Apply an empty array in this case for required value validation.
+			if (is_null($rpcParams)) {
+				$rpcParams = array();
 			}
+
+			Serializer::Deserialize($request, $postData, ParsingContext::Body);
+			Serializer::Deserialize($request, $rpcParams, ParsingContext::RpcParams);
+		} else {
+			// When no post data is set, apply an empty array to check for potential required values.
+			Serializer::Deserialize($request, array(), ParsingContext::Body);
+			Serializer::Deserialize($request, array(), ParsingContext::RpcParams);
 		}
 
 		// Create a response, and set it's response ID so that it may be properly matched in Unity again.
