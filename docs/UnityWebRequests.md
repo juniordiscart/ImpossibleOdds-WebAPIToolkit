@@ -67,6 +67,10 @@ class MyWebResponse extends WebResponse
 
 When a response is sent back to the client, it is serialized to JSON using the `Serializer` class and its result is put as the body of the response. By default, it will pick up every public value of your response object. Protected and private values cannot be serialized. However, if you also have public values you don't want to include in your result, you can annotate them with `@ignore`. This will instruct the serializer to exclude the value from the result.
 
+### Advanced
+
+In cases where the response is not simple result or strutured data, but rather a blob like an image or audio asset, you may want to customize the actual sending of the response. The `SendResponse()` function can be overridden in your request class and provide a custom or alternative way of sending data back to the client. E.g. you can setup a gzip stream with multiple files and unzip them on the client again.
+
 ## Execution Pipeline
 
 When you've defined the data structure of your request and response, perform the following call to start the whole process:
