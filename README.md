@@ -4,7 +4,7 @@ Enriching your game or application with a server-side component can be a dauntin
 
 ## Serialization
 
-Serialization plays a huge part in what makes the other tools, found in this package, tick. The data provided in requests and sent back in responses, or data retrieved from databases is usually presented in a textual format or in the form of arrays, either layed out associative or sequentially. You can, of course, deal with keys and indices of these arrays, but they are tedious to work with and prone to errors. With this serialization tool, you can easily work with defined classes and make the translation back and forth between your objects and arrays, ready to process requests, send back responses and deal with databases.
+Serialization plays a huge part in what makes the other tools, found in this package, tick. The data provided in requests and sent back in responses, or data retrieved from databases is usually presented in a textual format or in the form of arrays, either layed out associative or sequentially. You can, of course, deal with the keys and indices of these arrays, but they are tedious to work with and prone to errors. With this serialization tool, you can easily work with defined classes and make the translation back and forth between your objects and arrays, ready to process requests, send back responses and deal with data returned from databases.
 
 You can read all about it [here][SerializationDocumentation].
 
